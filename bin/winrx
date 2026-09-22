@@ -1,96 +1,117 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REGISTRY="$ROOT/registry.json"
+RUNTIME="$ROOT/.runtime"
+PID_DIR="$RUNTIME/pids"
+LOG_DIR="$RUNTIME/logs"
+mkdir -p "$PID_DIR" "$LOG_DIR"
 
 usage() {
-  echo "Usage:"
-  echo "  winrx status"
-  echo "  winrx list"
-  echo "  winrx start <app>"
-  echo "  winrx stop <app>"
-  echo "  winrx update"
-  echo "  winrx doctor"
+  cat <<'EOF'
+WinRX Hub
+
+Usage:
+  winrx status                         Show process and repository status
+  winrx health [app|all]               Run repository health checks
+  winrx start <app>                    Start an app in the background
+  winrx stop <app|all>                 Stop an app gracefully
+  winrx restart <app>                  Restart an app
+  winrx logs <app>                     Follow an app log
+  winrx list                           List registered apps
+  winrx update [app|all]               Pull app repositories
+  winrx dashboard                      Serve the dashboard on localhost
+  winrx doctor                         Check local dependencies
+  winrx link <repo-url> <app-name>     Clone an app into apps/
+EOF
 }
 
-if [ "$#" -eq 0 ]; then
-  usage
-  exit 1
-fi
-
-case "$1" in
-  status)
-    echo "WinRX Hub status"
-    echo "Repo root: $ROOT"
-    echo "Apps directory: $ROOT/apps"
-    if [ -d "$ROOT/apps" ]; then
-      ls -1 "$ROOT/apps"
-    fi
-    ;;
-  list)
-    if command -v python3 >/dev/null 2>&1; then
-      python3 - "$ROOT/registry.json" <<'PY'
+app_meta() {
+  python3 - "$REGISTRY" "$1" <<'PY'
 import json, sys
-path = sys.argv[1]
-with open(path, 'r', encoding='utf-8') as f:
-    data = json.load(f)
-for name, meta in data.items():
-    print(f"{name}: {meta.get('path', '')} | {meta.get('type', '')}")
+with open(sys.argv[1], encoding="utf-8") as f: data = json.load(f)
+app = data.get("apps", {}).get(sys.argv[2])
+if not app:
+    raise SystemExit(1)
+print(json.dumps(app))
 PY
-    else
-      echo "Python 3 is required for registry listing."
-    fi
-    ;;
-  start)
-    if [ -z "${2:-}" ]; then
-      echo "Please provide an app name."
-      exit 1
-    fi
-    app="$2"
-    if [ -d "$ROOT/apps/$app" ]; then
-      echo "Starting $app..."
-      cd "$ROOT/apps/$app"
+}
 
-      if [ -f package.json ]; then
-        npm run dev
-      elif [ -f go.mod ]; then
-        go run .
-      elif [ -f "requirements.txt" ]; then
-        python3 app.py
-      else
-        echo "No recognized launcher for $app."
-        echo "Add a start command in registry.json or a project-specific script."
-      fi
-    else
-      echo "App not found: $app"
-      echo "Check apps/ and registry.json"
-      exit 1
-    fi
-    ;;
-  stop)
-    if [ -z "${2:-}" ]; then
-      echo "Please provide an app name."
-      exit 1
-    fi
-    echo "Stopping ${2:-}..."
-    echo "This hub uses simple project-local scripts. Add a custom stop flow when needed."
-    ;;
-  update)
-    echo "Updating app repositories..."
-    find "$ROOT/apps" -maxdepth 1 -mindepth 1 -type d -exec git -C {} pull --ff-only \; 2>/dev/null || true
-    ;;
-  doctor)
-    echo "Checking required tools..."
-    for cmd in git python3 node npm go; do
-      if command -v "$cmd" >/dev/null 2>&1; then
-        echo "OK: $cmd"
-      else
-        echo "MISSING: $cmd"
-      fi
-    done
-    ;;
-  *)
-    usage
-    exit 1
-    ;;
+app_path() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["apps"][sys.argv[2]]["path"])' "$REGISTRY" "$1"; }
+app_command() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["apps"][sys.argv[2]].get("command", ""))' "$REGISTRY" "$1"; }
+pid_file() { echo "$PID_DIR/$1.pid"; }
+log_file() { echo "$LOG_DIR/$1.log"; }
+
+is_running() {
+  local app="$1" pidfile pid
+  pidfile="$(pid_file "$app")"
+  [ -s "$pidfile" ] || return 1
+  pid="$(cat "$pidfile")"
+  kill -0 "$pid" 2>/dev/null
+}
+
+list_apps() {
+  python3 - "$REGISTRY" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as f: data = json.load(f)
+for name, meta in data.get("apps", {}).items():
+    print(f"{name}\t{meta.get('category','-')}\t{meta.get('path','-')}")
+PY
+}
+
+health_one() {
+  local app="$1" path repo status pid
+  path="$(app_path "$app")"
+  if [ ! -d "$ROOT/$path" ]; then
+    printf '%-18s %-10s %s\n' "$app" "MISSING" "$path"
+    return 0
+  fi
+  if [ -d "$ROOT/$path/.git" ]; then status="git-ok"; else status="not-git"; fi
+  if is_running "$app"; then pid="running($(cat "$(pid_file "$app")"))"; else pid="stopped"; fi
+  printf '%-18s %-10s %-16s %s\n' "$app" "$status" "$pid" "$path"
+}
+
+health_all() {
+  printf '%-18s %-10s %-16s %s\n' "APP" "REPO" "PROCESS" "PATH"
+  printf '%-18s %-10s %-16s %s\n' "---" "----" "-------" "----"
+  while IFS=$'\t' read -r name _; do health_one "$name"; done < <(list_apps)
+}
+
+start_app() {
+  local app="$1" path command pidfile logfile
+  app_meta "$app" >/dev/null || { echo "Unknown app: $app"; exit 1; }
+  if is_running "$app"; then echo "$app is already running (PID $(cat "$(pid_file "$app")"))."; return 0; fi
+  path="$(app_path "$app")"; command="$(app_command "$app")"
+  [ -n "$command" ] || { echo "No command configured for $app."; exit 1; }
+  [ -d "$ROOT/$path" ] || { echo "App directory missing: $ROOT/$path"; exit 1; }
+  pidfile="$(pid_file "$app")"; logfile="$(log_file "$app")"
+  (cd "$ROOT/$path" && nohup sh -lc "$command" >>"$logfile" 2>&1 & echo $! >"$pidfile")
+  sleep 1
+  if is_running "$app"; then echo "Started $app (PID $(cat "$pidfile")); log: $logfile"; else echo "${app} exited during startup; check $logfile"; rm -f "$pidfile"; return 1; fi
+}
+
+stop_app() {
+  local app="$1" pidfile pid
+  pidfile="$(pid_file "$app")"
+  if ! is_running "$app"; then rm -f "$pidfile"; echo "$app is not running."; return 0; fi
+  pid="$(cat "$pidfile")"; kill "$pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5; do is_running "$app" || break; sleep 1; done
+  if is_running "$app"; then kill -9 "$pid" 2>/dev/null || true; fi
+  rm -f "$pidfile"; echo "Stopped $app."
+}
+
+case "${1:-help}" in
+  help|-h|--help) usage ;;
+  list) list_apps ;;
+  status|health) [ "${2:-all}" = "all" ] && health_all || health_one "$2" ;;
+  start) [ -n "${2:-}" ] || { usage; exit 1; }; start_app "$2" ;;
+  stop) [ "${2:-}" = "all" ] && { while IFS=$'\t' read -r n _; do stop_app "$n"; done < <(list_apps); } || { [ -n "${2:-}" ] || { usage; exit 1; }; stop_app "$2"; } ;;
+  restart) [ -n "${2:-}" ] || { usage; exit 1; }; stop_app "$2"; start_app "$2" ;;
+  logs) [ -n "${2:-}" ] || { usage; exit 1; }; touch "$(log_file "$2")"; tail -f "$(log_file "$2")" ;;
+  update) target="${2:-all}"; [ "$target" = all ] && find "$ROOT/apps" -mindepth 1 -maxdepth 1 -type d -exec sh -c '[ -d "$1/.git" ] && git -C "$1" pull --ff-only || true' _ {} \; || { [ -d "$ROOT/apps/$target/.git" ] || { echo "Unknown app: $target"; exit 1; }; git -C "$ROOT/apps/$target" pull --ff-only; } ;;
+  dashboard) echo "Dashboard: http://127.0.0.1:8787"; python3 -m http.server 8787 --directory "$ROOT/dashboard" ;;
+  doctor) for c in git python3 node npm go; do command -v "$c" >/dev/null && echo "OK      $c" || echo "MISSING $c"; done ;;
+  link) [ -n "${2:-}" ] && [ -n "${3:-}" ] || { usage; exit 1; }; git clone "$2" "$ROOT/apps/$3" ;;
+  *) usage; exit 1 ;;
 esac
