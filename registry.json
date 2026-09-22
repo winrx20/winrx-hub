@@ -1,18 +1,18 @@
 {
-  "version": 2,
+  "version": 3,
   "hub": {
     "name": "WinRX Hub",
     "owner": "winrx20",
     "dashboard": { "path": "dashboard", "host": "127.0.0.1", "port": 8787 }
   },
   "apps": {
-    "9router": { "repo":"https://github.com/winrx20/9router.git", "path":"apps/9router", "category":"service", "description":"AI routing gateway and provider fallback service", "command":"npm run dev", "port":20128, "enabled":true, "autoClone":true },
-    "gum": { "repo":"https://github.com/winrx20/gum.git", "path":"apps/gum", "category":"cli", "description":"Glamorous shell script toolkit", "command":"go run .", "enabled":true, "autoClone":true },
-    "FckSignups": { "repo":"https://github.com/winrx20/FckSignups.git", "path":"apps/FckSignups", "category":"web", "description":"Open-source browser tools with no signups", "command":"npm run dev", "port":3002, "enabled":true, "autoClone":true },
-    "SeeStack": { "repo":"https://github.com/winrx20/SeeStack.git", "path":"apps/SeeStack", "category":"web", "description":"Visualize data flow through functions and conditions", "command":"npm run dev", "port":3001, "enabled":true, "autoClone":true },
-    "mastermind": { "repo":"https://github.com/winrx20/mastermind.git", "path":"apps/mastermind", "category":"web", "description":"Mastermind web project", "command":"python3 -m http.server 3003", "port":3003, "enabled":true, "autoClone":true },
-    "docs": { "repo":"https://github.com/winrx-mm/docs.git", "path":"apps/docs", "category":"documentation", "description":"Documentation website source", "command":"npm run dev", "port":3000, "enabled":true, "autoClone":true },
-    "termux-tools": { "repo":"https://github.com/winrx20/termux-tools.git", "path":"apps/termux-tools", "category":"termux", "description":"Termux command-line tools", "command":"bash", "enabled":true, "autoClone":true },
-    "termux-packages": { "repo":"https://github.com/winrx20/termux-packages.git", "path":"apps/termux-packages", "category":"termux", "description":"Termux package build system", "command":"bash", "enabled":true, "autoClone":true }
+    "9router": { "repo":"https://github.com/winrx20/9router.git", "path":"apps/9router", "category":"service", "description":"AI routing gateway and provider fallback service", "command":"npm run dev", "productionCommand":"npm run start", "port":20128, "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "gum": { "repo":"https://github.com/winrx20/gum.git", "path":"apps/gum", "category":"cli", "description":"Glamorous shell script toolkit", "command":"go run .", "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "FckSignups": { "repo":"https://github.com/winrx20/FckSignups.git", "path":"apps/FckSignups", "category":"web", "description":"Open-source browser tools with no signups", "command":"npm run dev", "productionCommand":"npm run start", "port":3002, "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "SeeStack": { "repo":"https://github.com/winrx20/SeeStack.git", "path":"apps/SeeStack", "category":"web", "description":"Visualize data flow through functions and conditions", "command":"npm run dev", "productionCommand":"npm run start", "port":3001, "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "mastermind": { "repo":"https://github.com/winrx20/mastermind.git", "path":"apps/mastermind", "category":"web", "description":"Mastermind web project", "command":"python3 -m http.server 3003", "port":3003, "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "docs": { "repo":"https://github.com/winrx-mm/docs.git", "path":"apps/docs", "category":"documentation", "description":"Documentation website source", "command":"npm run dev", "productionCommand":"npm run start", "port":3000, "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "termux-tools": { "repo":"https://github.com/winrx20/termux-tools.git", "path":"apps/termux-tools", "category":"termux", "description":"Termux command-line tools", "command":"bash", "enabled":true, "autoClone":true, "autoStart":false, "production":false },
+    "termux-packages": { "repo":"https://github.com/winrx20/termux-packages.git", "path":"apps/termux-packages", "category":"termux", "description":"Termux package build system", "command":"bash", "enabled":true, "autoClone":true, "autoStart":false, "production":false }
   }
 }

@@ -1,0 +1,25 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Install this file at: ~/.termux/boot/winrx-hub
+# Requires the Termux:Boot add-on.
+set -euo pipefail
+
+HUB_DIR="${WINRX_HUB_DIR:-$HOME/winrx-hub}"
+LOG_DIR="$HUB_DIR/.runtime/logs"
+mkdir -p "$LOG_DIR"
+
+if [ ! -x "$HUB_DIR/bin/winrx" ]; then
+  echo "WinRX Hub was not found or is not executable: $HUB_DIR/bin/winrx" >&2
+  exit 1
+fi
+
+export PATH="$HUB_DIR/bin:$PATH"
+cd "$HUB_DIR"
+
+# Start only applications marked enabled and configured with autoStart in registry.json.
+python3 - "$HUB_DIR/registry.json" <<'PY'
+import json, subprocess, sys
+registry = json.load(open(sys.argv[1], encoding="utf-8"))
+for name, app in registry.get("apps", {}).items():
+    if app.get("enabled", False) and app.get("autoStart", False):
+        subprocess.run(["winrx", "start", name], check=False)
+PY

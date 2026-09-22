@@ -1,2 +1,5 @@
-# Runtime state
+# Runtime state and local secrets
 .runtime/
+.env
+.env.*
+!.env.example
