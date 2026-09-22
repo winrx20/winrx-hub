@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WinRX Hub</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">WINRX ECOSYSTEM</p>
+      <h1>WinRX Hub</h1>
+      <p class="subtitle">One simple control center for your projects.</p>
+    </div>
+    <div class="actions">
+      <button id="refresh" class="button secondary">Refresh</button>
+      <button id="copyBootstrap" class="button primary">Copy Termux setup</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="stats" id="stats"></section>
+    <section class="panel toolbar">
+      <input id="search" type="search" placeholder="Search projects..." aria-label="Search projects">
+      <select id="category" aria-label="Filter by category"><option value="all">All categories</option></select>
+    </section>
+    <section id="apps" class="grid" aria-live="polite"></section>
+    <section class="panel terminal">
+      <div class="terminal-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span>Termux quick start</span></div>
+      <pre><code>git clone https://github.com/winrx20/winrx-hub.git
+cd winrx-hub
+bash install.sh
+bash bootstrap.sh
+export PATH="$PWD/bin:$PATH"
+winrx status</code></pre>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
