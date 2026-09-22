@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 set -e
-APP="${1:-}"
-if [ -z "$APP" ]; then
-  echo "Usage: bash scripts/stop.sh <app>"
-  exit 1
-fi
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP="${1:-all}"
 
-echo "Stopping $APP..."
-echo "Add project-specific stop logic if needed."
+if [ "$APP" = "all" ]; then
+  echo "Updating all apps..."
+  find "$ROOT/apps" -maxdepth 1 -mindepth 1 -type d -print0 | while IFS= read -r -d '' d; do
+    name="$(basename "$d")"
+    if [ -d "$d/.git" ]; then
+      echo "Updating $name..."
+      git -C "$d" pull --ff-only || true
+    else
+      echo "Skipping $name: not a git repository"
+    fi
+  done
+else
+  if [ -d "$ROOT/apps/$APP/.git" ]; then
+    echo "Updating $APP..."
+    git -C "$ROOT/apps/$APP" pull --ff-only || true
+  else
+    echo "App not found or not a git repo: $APP"
+    exit 1
+  fi
+fi
