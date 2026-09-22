@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  echo "Usage:"
+  echo "  winrx status"
+  echo "  winrx list"
+  echo "  winrx start <app>"
+  echo "  winrx stop <app>"
+  echo "  winrx update"
+  echo "  winrx doctor"
+}
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 1
+fi
+
+case "$1" in
+  status)
+    echo "WinRX Hub status"
+    echo "Repo root: $ROOT"
+    echo "Apps directory: $ROOT/apps"
+    if [ -d "$ROOT/apps" ]; then
+      ls -1 "$ROOT/apps"
+    fi
+    ;;
+  list)
+    if command -v python3 >/dev/null 2>&1; then
+      python3 - "$ROOT/registry.json" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+for name, meta in data.items():
+    print(f"{name}: {meta.get('path', '')} | {meta.get('type', '')}")
+PY
+    else
+      echo "Python 3 is required for registry listing."
+    fi
+    ;;
+  start)
+    if [ -z "${2:-}" ]; then
+      echo "Please provide an app name."
+      exit 1
+    fi
+    app="$2"
+    if [ -d "$ROOT/apps/$app" ]; then
+      echo "Starting $app..."
+      cd "$ROOT/apps/$app"
+
+      if [ -f package.json ]; then
+        npm run dev
+      elif [ -f go.mod ]; then
+        go run .
+      elif [ -f "requirements.txt" ]; then
+        python3 app.py
+      else
+        echo "No recognized launcher for $app."
+        echo "Add a start command in registry.json or a project-specific script."
+      fi
+    else
+      echo "App not found: $app"
+      echo "Check apps/ and registry.json"
+      exit 1
+    fi
+    ;;
+  stop)
+    if [ -z "${2:-}" ]; then
+      echo "Please provide an app name."
+      exit 1
+    fi
+    echo "Stopping ${2:-}..."
+    echo "This hub uses simple project-local scripts. Add a custom stop flow when needed."
+    ;;
+  update)
+    echo "Updating app repositories..."
+    find "$ROOT/apps" -maxdepth 1 -mindepth 1 -type d -exec git -C {} pull --ff-only \; 2>/dev/null || true
+    ;;
+  doctor)
+    echo "Checking required tools..."
+    for cmd in git python3 node npm go; do
+      if command -v "$cmd" >/dev/null 2>&1; then
+        echo "OK: $cmd"
+      else
+        echo "MISSING: $cmd"
+      fi
+    done
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

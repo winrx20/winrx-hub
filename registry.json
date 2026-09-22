@@ -1,0 +1,53 @@
+{
+  "9router": {
+    "path": "apps/9router",
+    "type": "service",
+    "command": "npm run dev",
+    "port": 20128,
+    "enabled": true
+  },
+  "SeeStack": {
+    "path": "apps/SeeStack",
+    "type": "app",
+    "command": "npm run dev",
+    "port": 3001,
+    "enabled": true
+  },
+  "gum": {
+    "path": "apps/gum",
+    "type": "cli",
+    "command": "go run .",
+    "enabled": true
+  },
+  "FckSignups": {
+    "path": "apps/FckSignups",
+    "type": "site",
+    "command": "npm run dev",
+    "port": 3002,
+    "enabled": true
+  },
+  "docs": {
+    "path": "apps/docs",
+    "type": "site",
+    "command": "npm run dev",
+    "port": 3000,
+    "enabled": true
+  },
+  "mastermind": {
+    "path": "apps/mastermind",
+    "type": "site",
+    "command": "npm run dev",
+    "port": 3003,
+    "enabled": false
+  },
+  "termux-tools": {
+    "path": "apps/termux-tools",
+    "type": "tooling",
+    "enabled": true
+  },
+  "termux-packages": {
+    "path": "apps/termux-packages",
+    "type": "tooling",
+    "enabled": true
+  }
+}
